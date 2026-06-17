@@ -44,6 +44,10 @@ public class TicketInstance {
     @Column(columnDefinition = "JSON")
     private String payload;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

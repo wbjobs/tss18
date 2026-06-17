@@ -1,6 +1,6 @@
 package com.ticket.engine.engine;
 
-import com.ticket.engine.engine.entity.StateMachineDefinition;
+import com.ticket.engine.dto.StateMachineDefinition;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
