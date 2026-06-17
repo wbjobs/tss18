@@ -1,0 +1,21 @@
+package com.ticket.engine.engine;
+
+public class TenantContext {
+
+    private static final ThreadLocal<Long> TENANT_ID_HOLDER = new ThreadLocal<>();
+
+    private TenantContext() {
+    }
+
+    public static Long getCurrentTenantId() {
+        return TENANT_ID_HOLDER.get();
+    }
+
+    public static void setCurrentTenantId(Long tenantId) {
+        TENANT_ID_HOLDER.set(tenantId);
+    }
+
+    public static void clear() {
+        TENANT_ID_HOLDER.remove();
+    }
+}
