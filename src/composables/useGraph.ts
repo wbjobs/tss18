@@ -610,6 +610,118 @@ export function useGraph(containerRef: { value: HTMLElement | null }) {
     }
   }
 
+  let animationTimers: number[] = []
+
+  function highlightSimulationPath(path: { fromStateId: string; toStateId: string; transitionId?: string; conditionMet?: boolean }) {
+    if (!graph.value) return
+
+    const g = graph.value
+    const nodes = g.getNodes()
+    const edges = g.getEdges()
+
+    const sourceNode = nodes.find((n) => {
+      const d = n.getData() as StateNodeData
+      return d?.id === path.fromStateId
+    })
+    const targetNode = nodes.find((n) => {
+      const d = n.getData() as StateNodeData
+      return d?.id === path.toStateId
+    })
+
+    const matchedEdge = edges.find((e) => {
+      const d = e.getData() as TransitionData
+      return d?.id === path.transitionId
+    })
+
+    const fallbackEdge = !matchedEdge ? edges.find((e) => {
+      const d = e.getData() as TransitionData
+      return d?.sourceStateId === path.fromStateId && d?.targetStateId === path.toStateId
+    }) : null
+
+    const edgeToHighlight = matchedEdge || fallbackEdge
+
+    const isMet = path.conditionMet !== false
+    const highlightColor = isMet ? '#10b981' : '#ef4444'
+    const nodeGlowColor = isMet ? '#10b981' : '#f59e0b'
+
+    if (sourceNode) {
+      const srcData = sourceNode.getData() as StateNodeData
+      sourceNode.attr('body/stroke', nodeGlowColor)
+      sourceNode.attr('body/strokeWidth', 4)
+      sourceNode.attr('body/filter', {
+        name: 'dropShadow',
+        args: { dx: 0, dy: 0, blur: 8, opacity: 0.6, color: nodeGlowColor },
+      })
+    }
+
+    if (targetNode) {
+      const pulseCount = 3
+      let pulse = 0
+      const doPulse = () => {
+        if (pulse >= pulseCount * 2) {
+          targetNode.attr('body/strokeWidth', 4)
+          targetNode.attr('body/stroke', nodeGlowColor)
+          targetNode.attr('body/filter', {
+            name: 'dropShadow',
+            args: { dx: 0, dy: 0, blur: 12, opacity: 0.7, color: nodeGlowColor },
+          })
+          return
+        }
+        const isExpand = pulse % 2 === 0
+        targetNode.attr('body/strokeWidth', isExpand ? 6 : 3)
+        targetNode.attr('body/stroke', isExpand ? nodeGlowColor : 'transparent')
+        pulse++
+        const timer = window.setTimeout(doPulse, 300)
+        animationTimers.push(timer)
+      }
+      doPulse()
+    }
+
+    if (edgeToHighlight) {
+      edgeToHighlight.attr('line/stroke', highlightColor)
+      edgeToHighlight.attr('line/strokeWidth', 3)
+      edgeToHighlight.attr('line/strokeDasharray', 8)
+      edgeToHighlight.attr('line/style/animation', 'simulation-flow 1s linear infinite')
+
+      let offset = 0
+      const animateEdge = () => {
+        offset += 1
+        edgeToHighlight.attr('line/strokeDashoffset', offset)
+        const timer = window.requestAnimationFrame(animateEdge)
+        animationTimers.push(timer)
+      }
+      animateEdge()
+    }
+  }
+
+  function resetSimulationHighlight() {
+    if (!graph.value) return
+
+    animationTimers.forEach((timer) => {
+      window.clearTimeout(timer)
+      window.cancelAnimationFrame(timer)
+    })
+    animationTimers = []
+
+    const g = graph.value
+    g.getNodes().forEach((node) => {
+      const data = node.getData() as StateNodeData
+      if (data) {
+        node.attr('body/stroke', darkenColor(data.color, 0.2))
+        node.attr('body/strokeWidth', 2)
+        ;(node as any).removeAttr('body/filter')
+      }
+    })
+
+    g.getEdges().forEach((edge) => {
+      edge.attr('line/stroke', '#a0a0a0')
+      edge.attr('line/strokeWidth', 2)
+      ;(edge as any).removeAttr('line/strokeDasharray')
+      ;(edge as any).removeAttr('line/strokeDashoffset')
+      ;(edge as any).removeAttr('line/style/animation')
+    })
+  }
+
   watch(
     () => designerStore.gridEnabled,
     (enabled) => {
@@ -672,5 +784,7 @@ export function useGraph(containerRef: { value: HTMLElement | null }) {
     importData,
     refreshNode,
     refreshEdge,
+    highlightSimulationPath,
+    resetSimulationHighlight,
   }
 }

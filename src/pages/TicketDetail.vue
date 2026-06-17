@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Clock, User, FileText, History } from 'lucide-vue-next'
+import { ArrowLeft, Clock, User, FileText, History, BarChart3 } from 'lucide-vue-next'
+import GanttChart from '@/components/common/GanttChart.vue'
+import { getGanttData } from '@/api/gantt'
+import type { GanttItem } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,6 +19,9 @@ const timeline = ref([
 ])
 
 const ticketId = route.params.id
+const activeTab = ref('timeline')
+const ganttItems = ref<GanttItem[]>([])
+const ganttLoading = ref(false)
 
 onMounted(() => {
   loading.value = true
@@ -34,6 +40,28 @@ onMounted(() => {
     loading.value = false
   }, 500)
 })
+
+async function loadGanttData() {
+  const id = Number(ticketId)
+  if (!id) return
+  ganttLoading.value = true
+  try {
+    const res = await getGanttData(id)
+    if (res.code === 200) {
+      ganttItems.value = res.data || []
+    }
+  } catch {
+    ganttItems.value = []
+  } finally {
+    ganttLoading.value = false
+  }
+}
+
+function handleTabChange(tab: string | number) {
+  if (tab === 'gantt' && ganttItems.value.length === 0) {
+    loadGanttData()
+  }
+}
 
 const goBack = () => {
   router.back()
@@ -118,20 +146,35 @@ const getStatusTag = (status: string) => {
             </h3>
           </div>
           <div class="panel-body">
-            <el-timeline>
-              <el-timeline-item
-                v-for="(item, index) in timeline"
-                :key="item.id"
-                :timestamp="item.time"
-                :type="index === timeline.length - 1 ? 'primary' : ''"
-              >
-                <div class="timeline-content">
-                  <div class="timeline-state">{{ item.state }}</div>
-                  <div class="timeline-operator">{{ item.operator }}</div>
-                  <div class="timeline-desc">{{ item.description }}</div>
+            <el-tabs v-model="activeTab" class="trace-tabs" @tab-change="handleTabChange">
+              <el-tab-pane label="时间线" name="timeline">
+                <el-timeline>
+                  <el-timeline-item
+                    v-for="(item, index) in timeline"
+                    :key="item.id"
+                    :timestamp="item.time"
+                    :type="index === timeline.length - 1 ? 'primary' : ''"
+                  >
+                    <div class="timeline-content">
+                      <div class="timeline-state">{{ item.state }}</div>
+                      <div class="timeline-operator">{{ item.operator }}</div>
+                      <div class="timeline-desc">{{ item.description }}</div>
+                    </div>
+                  </el-timeline-item>
+                </el-timeline>
+              </el-tab-pane>
+              <el-tab-pane name="gantt">
+                <template #label>
+                  <span class="gantt-tab-label">
+                    <BarChart3 :size="14" />
+                    Gantt图
+                  </span>
+                </template>
+                <div v-loading="ganttLoading" class="gantt-wrapper">
+                  <GanttChart :items="ganttItems" :height="240" />
                 </div>
-              </el-timeline-item>
-            </el-timeline>
+              </el-tab-pane>
+            </el-tabs>
           </div>
         </div>
       </el-col>
@@ -266,5 +309,31 @@ const getStatusTag = (status: string) => {
 
 :deep(.el-timeline-item__wrapper) {
   padding-bottom: 20px;
+}
+
+.gantt-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trace-tabs :deep(.el-tabs__nav-wrap::after) {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.trace-tabs :deep(.el-tabs__item) {
+  color: #94a3b8;
+}
+
+.trace-tabs :deep(.el-tabs__item.is-active) {
+  color: #60a5fa;
+}
+
+.trace-tabs :deep(.el-tabs__active-bar) {
+  background-color: #3b82f6;
+}
+
+.gantt-wrapper {
+  min-height: 200px;
 }
 </style>

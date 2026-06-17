@@ -5,11 +5,8 @@ export interface ApiResponse<T = any> {
 }
 
 export interface PageResult<T> {
-  content: T[]
-  totalElements: number
-  totalPages: number
-  number: number
-  size: number
+  list: T[]
+  total: number
 }
 
 export interface StateNode {
@@ -77,3 +74,5 @@ export interface WebhookConfig {
   createdAt?: string
   updatedAt?: string
 }
+
+export type { SimulationRequest, SimulationPath, SimulationResult, GanttItem } from './simulation'

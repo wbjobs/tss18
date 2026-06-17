@@ -2,14 +2,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { FlaskConical, X } from 'lucide-vue-next'
 import NodePanel from './NodePanel.vue'
 import PropertyPanel from './PropertyPanel.vue'
+import SimulationPanel from './SimulationPanel.vue'
 import Toolbar from './Toolbar.vue'
 import { useGraph } from '@/composables/useGraph'
 import { useDesignerStore } from '@/stores/designer'
 import { useStateMachineStore } from '@/stores/stateMachine'
 import type { StateMachineData, StateNodeData, TransitionData } from '@/types/designer'
-import type { StateNode, Transition } from '@/types'
+import type { StateNode, Transition, SimulationPath } from '@/types'
 
 const props = defineProps<{
   machineId?: string
@@ -44,7 +46,11 @@ const {
   importData,
   refreshNode,
   refreshEdge,
+  highlightSimulationPath,
+  resetSimulationHighlight,
 } = useGraph(containerRef)
+
+const showSimulation = ref(false)
 
 const zoom = computed(() => designerStore.zoom)
 const currentMachineId = computed(() => {
@@ -282,6 +288,29 @@ function handleRefreshEdge(edgeId: string) {
   refreshEdge(edgeId)
 }
 
+function handleHighlightPath(path: SimulationPath) {
+  resetSimulationHighlight()
+  setTimeout(() => {
+    highlightSimulationPath({
+      fromStateId: path.fromStateId,
+      toStateId: path.toStateId,
+      transitionId: path.transitionId,
+      conditionMet: path.conditionMet,
+    })
+  }, 50)
+}
+
+function handleHighlightReset() {
+  resetSimulationHighlight()
+}
+
+function toggleSimulation() {
+  showSimulation.value = !showSimulation.value
+  if (!showSimulation.value) {
+    resetSimulationHighlight()
+  }
+}
+
 onMounted(() => {
   designerStore.initialize()
   if (props.initialData) {
@@ -328,11 +357,31 @@ onMounted(() => {
         >
           <el-icon class="is-loading text-4xl text-blue-500"><Loading /></el-icon>
         </div>
+
+        <button
+          class="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
+          :class="showSimulation
+            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+            : 'bg-white/90 text-gray-600 shadow border border-gray-200 hover:border-emerald-300 hover:text-emerald-600'"
+          @click="toggleSimulation"
+        >
+          <FlaskConical :size="16" />
+          {{ showSimulation ? '关闭仿真' : '路由仿真' }}
+        </button>
       </div>
 
       <PropertyPanel
+        v-if="!showSimulation"
         @refresh-node="handleRefreshNode"
         @refresh-edge="handleRefreshEdge"
+      />
+
+      <SimulationPanel
+        v-if="showSimulation"
+        :state-machine-id="Number(currentMachineId) || 0"
+        :nodes="designerStore.nodes"
+        @highlight-path="handleHighlightPath"
+        @highlight-reset="handleHighlightReset"
       />
     </div>
 
@@ -383,5 +432,11 @@ export default {
 
 .x6-graph-scroller {
   overflow: auto !important;
+}
+
+@keyframes simulation-flow {
+  to {
+    stroke-dashoffset: -16;
+  }
 }
 </style>
